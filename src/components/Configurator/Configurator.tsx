@@ -184,7 +184,7 @@ export function Configurator() {
     <section
       id="konfigurator"
       className="configurator relative z-[2] bg-paper"
-      style={{ marginTop: `calc(${-EXIT_LEN} * 100 * var(--vh-small))` }}
+      style={{ "--exit-len": EXIT_LEN } as React.CSSProperties}
       aria-labelledby="config-title"
     >
       <HowItWorks />

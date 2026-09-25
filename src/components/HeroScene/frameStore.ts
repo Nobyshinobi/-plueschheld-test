@@ -20,11 +20,13 @@ export class FrameStore {
   private inflight = 0;
   private aborter = new AbortController();
   private disposed = false;
+  /** Netzwerk erst nach start() – das LCP-Bild und das JS haben Vorrang */
+  private started = false;
   private pinned: Set<number>;
   private focusT = 1;
   private readonly concurrency: number;
   private readonly maxDecoded: number;
-  onReady: (() => void) | null = null;
+  onReady: ((frame: number) => void) | null = null;
 
   constructor(private cam: HeroCamera, readonly set: SetName, opts: { coarsePointer: boolean }) {
     this.concurrency = opts.coarsePointer ? 4 : 6;
@@ -42,6 +44,8 @@ export class FrameStore {
   }
 
   start() {
+    if (this.started) return;
+    this.started = true;
     this.pump();
   }
 
@@ -100,7 +104,7 @@ export class FrameStore {
   }
 
   private pump() {
-    while (!this.disposed && this.inflight < this.concurrency && this.queue.length) {
+    while (this.started && !this.disposed && this.inflight < this.concurrency && this.queue.length) {
       const i = this.queue.shift()!;
       if (this.blobs.has(i)) continue;
       this.inflight++;
@@ -137,7 +141,7 @@ export class FrameStore {
       }
       this.decoded.set(i, d);
       this.evict();
-      this.onReady?.();
+      this.onReady?.(i);
     };
     const viaImage = () => {
       const url = URL.createObjectURL(blob);

@@ -33,6 +33,7 @@ export class HeroRenderer {
   private readonly coarse: boolean;
   private readonly debugEye: boolean;
   onFirstDraw: (() => void) | null = null;
+  private loading = false;
   /** zuletzt gezeichneter Frame (für QA) */
   lastDrawn = { set: "" as SetName | "", frame: 0, t: 0 };
 
@@ -54,7 +55,8 @@ export class HeroRenderer {
 
   resize(cssW: number, cssH: number) {
     if (cssW < 2 || cssH < 2) return;
-    const maxPx = this.coarse ? 2.4e6 : 3.6e6;
+    // Quellframes sind max. 1248 px breit -> mehr Canvas-Pixel bringen keine Schärfe, nur Rasterkosten
+    const maxPx = 2.4e6;
     const dpr = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(maxPx / (cssW * cssH)));
     if (cssW === this.w && cssH === this.h && dpr === this.dpr) return;
     this.w = cssW;
@@ -67,14 +69,23 @@ export class HeroRenderer {
       this.prevStore?.dispose();
       this.prevStore = this.store;
       this.store = new FrameStore(this.cam, set, { coarsePointer: this.coarse });
-      this.store.onReady = () => {
-        this.dirty = true;
-        this.redraw();
+      this.store.onReady = (i) => {
+        // Nur neu zeichnen, wenn der fertig dekodierte Frame besser passt als der gezeigte
+        const t = this.lastDrawn.t;
+        const cur = this.lastDrawn.frame;
+        const better = !cur || (t <= this.cam.m.k ? i > cur && i <= t + 1e-6 : i < cur && i >= t - 1e-6);
+        if (better || this.lastDrawn.set !== this.store?.set) this.scheduleRedraw();
       };
-      this.store.start();
+      if (this.loading) this.store.start();
     }
     this.dirty = true;
     this.redraw();
+  }
+
+  /** Sequenz laden (nach dem ersten Rendern der Seite, siehe StoryStage) */
+  startLoading() {
+    this.loading = true;
+    this.store?.start();
   }
 
   /** Ziel-Rechteck des Buchcovers (CSS px, frontal, ungedreht) */
@@ -95,8 +106,7 @@ export class HeroRenderer {
       .decode()
       .then(() => {
         this.coverReady = true;
-        this.dirty = true;
-        this.redraw();
+        this.scheduleRedraw();
       })
       .catch(() => {});
   }
@@ -109,11 +119,23 @@ export class HeroRenderer {
     this.draw(s);
   }
 
+  /** Sofort neu zeichnen (z. B. nach Resize – Canvas wurde durch width/height geleert) */
   private redraw() {
     if (this.last) {
       this.dirty = false;
       this.draw(this.last);
     }
+  }
+
+  /** Mehrere Anlässe (Frames dekodiert, Cover geladen) zu höchstens einem Zeichnen pro Frame bündeln */
+  private rafId = 0;
+  private scheduleRedraw() {
+    this.dirty = true;
+    if (this.rafId) return;
+    this.rafId = requestAnimationFrame(() => {
+      this.rafId = 0;
+      if (this.dirty) this.redraw();
+    });
   }
 
   private draw(s: HeroDrawState) {
@@ -173,7 +195,7 @@ export class HeroRenderer {
     const { ctx } = this;
     ctx.setTransform(T[0] * d, T[1] * d, T[2] * d, T[3] * d, T[4] * d, T[5] * d);
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
+    ctx.imageSmoothingQuality = "medium"; // "high" = 3× Rasterkosten ohne sichtbaren Gewinn beim Hochskalieren (gemessen)
     ctx.drawImage(img, 0, 0);
     this.lastDrawn = { set: sz, frame: j, t: cam.t };
     return true;
@@ -218,7 +240,7 @@ export class HeroRenderer {
     if (r > 0.1 && "roundRect" in ctx) ctx.roundRect(D.x, D.y, D.w, D.h, r);
     else ctx.rect(D.x, D.y, D.w, D.h);
     ctx.clip();
-    ctx.imageSmoothingQuality = "high";
+    ctx.imageSmoothingQuality = "medium"; // "high" = 3× Rasterkosten ohne sichtbaren Gewinn beim Hochskalieren (gemessen)
     ctx.drawImage(img, sx * k, sy * k, sw * k, sh * k, D.x, D.y, D.w, D.h);
     ctx.restore();
   }
@@ -241,6 +263,7 @@ export class HeroRenderer {
   }
 
   dispose() {
+    cancelAnimationFrame(this.rafId);
     this.store?.dispose();
     this.prevStore?.dispose();
     this.store = this.prevStore = null;

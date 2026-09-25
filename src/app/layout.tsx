@@ -8,7 +8,9 @@ const fraunces = localFont({
   variable: "--font-fraunces",
   weight: "100 900",
   display: "swap",
-  adjustFontFallback: "Times New Roman",
+  // Eigene, gemessene Fallback-Faces in globals.css (next/font rechnet für Times 126,7 % –
+  // bei Fraunces@540 sind 117,9 % korrekt; zusätzlich Android/Linux-Serifen abgedeckt)
+  adjustFontFallback: false,
 });
 const frauncesItalic = localFont({
   src: "../fonts/fraunces-soft-italic.woff2",

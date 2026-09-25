@@ -1,16 +1,20 @@
 /**
- * Validierung (Zod) – geteilt zwischen Formular (Client) und API-Route (Server).
+ * Validierung – geteilt zwischen Formular (Client) und API-Route (Server).
+ * zod/mini: gleiche Schemas wie "zod", aber tree-shakebar -> deutlich weniger Client-JS.
  */
-import { z } from "zod";
+import * as z from "zod/mini";
+
+const text = (max: number, msg = `Bitte höchstens ${max} Zeichen.`) => z.string().check(z.trim(), z.maxLength(max, msg));
+const posInt = () => z.int().check(z.positive());
 
 export const photoRefSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().max(200),
-  size: z.number().int().positive(),
-  width: z.number().int().positive(),
-  height: z.number().int().positive(),
+  id: z.string().check(z.minLength(1)),
+  name: z.string().check(z.maxLength(200)),
+  size: posInt(),
+  width: posInt(),
+  height: posInt(),
   /** nur clientseitig (Object-URL für die Vorschau) – wird nie versendet */
-  url: z.string().optional(),
+  url: z.optional(z.string()),
 });
 export type PhotoRef = z.infer<typeof photoRefSchema>;
 
@@ -23,39 +27,34 @@ export const PRONOUNS = [
   { id: "name", label: "nur den Namen verwenden" },
 ] as const;
 
+const requiredPhoto = (msg: string) => z.nullable(photoRefSchema).check(z.refine((v) => v !== null, msg));
+const childNameSchema = z
+  .string()
+  .check(
+    z.trim(),
+    z.minLength(1, "Wie heißt dein Kind?"),
+    z.maxLength(40, "Bitte höchstens 40 Zeichen."),
+    z.regex(nameRe, "Bitte nur Buchstaben, Leerzeichen oder Bindestrich verwenden."),
+  );
+
 export const stepSchemas = {
-  child: z.object({
-    childPhoto: photoRefSchema.nullable().refine((v) => v !== null, "Bitte lade ein Foto deines Kindes hoch."),
-  }),
-  teddy: z.object({
-    teddyPhoto: photoRefSchema.nullable().refine((v) => v !== null, "Bitte lade ein Foto des Kuscheltiers hoch."),
-    teddyName: z.string().trim().max(40, "Bitte höchstens 40 Zeichen."),
-  }),
+  child: z.object({ childPhoto: requiredPhoto("Bitte lade ein Foto deines Kindes hoch.") }),
+  teddy: z.object({ teddyPhoto: requiredPhoto("Bitte lade ein Foto des Kuscheltiers hoch."), teddyName: text(40) }),
   details: z.object({
-    childName: z
-      .string()
-      .trim()
-      .min(1, "Wie heißt dein Kind?")
-      .max(40, "Bitte höchstens 40 Zeichen.")
-      .regex(nameRe, "Bitte nur Buchstaben, Leerzeichen oder Bindestrich verwenden."),
-    childAge: z.enum(AGES, { message: "Bitte wähle das Alter aus." }),
+    childName: childNameSchema,
+    childAge: z.enum(AGES, { error: "Bitte wähle das Alter aus." }),
     pronoun: z.enum(["sie", "er", "name", ""]),
   }),
   interests: z
-    .object({
-      interests: z.array(z.string()).max(12),
-      customInterest: z.string().trim().max(80, "Bitte höchstens 80 Zeichen."),
-    })
-    .refine((v) => v.interests.length > 0 || v.customInterest.length > 0, {
-      message: "Wähle mindestens ein Interesse – oder schreib eine eigene Idee.",
-      path: ["interests"],
-    }),
-  story: z.object({
-    storyIdea: z.string().trim().max(1000, "Bitte höchstens 1000 Zeichen – ein paar Sätze reichen völlig."),
-  }),
-  review: z.object({
-    consent: z.literal(true, { message: "Bitte bestätige die Einwilligung, damit wir mit euren Fotos arbeiten dürfen." }),
-  }),
+    .object({ interests: z.array(z.string()).check(z.maxLength(12)), customInterest: text(80) })
+    .check(
+      z.refine((v) => v.interests.length > 0 || v.customInterest.length > 0, {
+        error: "Wähle mindestens ein Interesse – oder schreib eine eigene Idee.",
+        path: ["interests"],
+      }),
+    ),
+  story: z.object({ storyIdea: text(1000, "Bitte höchstens 1000 Zeichen – ein paar Sätze reichen völlig.") }),
+  review: z.object({ consent: z.literal(true, { error: "Bitte bestätige die Einwilligung, damit wir mit euren Fotos arbeiten dürfen." }) }),
 };
 
 export type StepId = keyof typeof stepSchemas;
@@ -91,47 +90,50 @@ export const emptyValues: ConfiguratorValues = {
    Bestell-Entwurf (API-Vertrag). Versioniert und bewusst erweiterbar:
    weitere Personen, Orte, Anlässe, Warenkorb/Stripe, Kundenkonto.
    ------------------------------------------------------------------------ */
+const photoMeta = z.omit(photoRefSchema, { url: true });
 const personSchema = z.object({
   role: z.enum(["geschwister", "mama", "papa", "oma", "opa", "haustier", "freund", "andere"]),
-  name: z.string().trim().min(1).max(40),
-  photoId: z.string().optional(),
+  name: z.string().check(z.trim(), z.minLength(1), z.maxLength(40)),
+  photoId: z.optional(z.string()),
 });
 
 export const orderDraftSchema = z.object({
   schemaVersion: z.literal(1),
   locale: z.literal("de-DE"),
   child: z.object({
-    name: z.string().trim().min(1).max(40).regex(nameRe),
+    name: childNameSchema,
     age: z.enum(AGES),
-    pronoun: z.enum(["sie", "er", "name"]).optional(),
-    photo: photoRefSchema.omit({ url: true }),
+    pronoun: z.optional(z.enum(["sie", "er", "name"])),
+    photo: photoMeta,
   }),
   companion: z.object({
     kind: z.literal("kuscheltier"),
-    name: z.string().trim().max(40).optional(),
-    photo: photoRefSchema.omit({ url: true }),
+    name: z.optional(text(40)),
+    photo: photoMeta,
   }),
-  interests: z.array(z.string().max(40)).max(12),
-  customInterest: z.string().trim().max(80).optional(),
-  storyIdea: z.string().trim().max(1000).optional(),
+  interests: z.array(z.string().check(z.maxLength(40))).check(z.maxLength(12)),
+  customInterest: z.optional(text(80)),
+  storyIdea: z.optional(text(1000)),
   /** Erweiterungen – im UI noch nicht aktiv */
-  extras: z
-    .object({
-      people: z.array(personSchema).max(6).default([]),
-      favoritePlace: z.string().trim().max(120).optional(),
-      occasion: z.string().trim().max(120).optional(),
-      dedication: z.string().trim().max(300).optional(),
-      exclusions: z.string().trim().max(300).optional(),
-    })
-    .default({ people: [] }),
+  extras: z._default(
+    z.object({
+      people: z._default(z.array(personSchema).check(z.maxLength(6)), []),
+      favoritePlace: z.optional(text(120)),
+      occasion: z.optional(text(120)),
+      dedication: z.optional(text(300)),
+      exclusions: z.optional(text(300)),
+    }),
+    { people: [] },
+  ),
   consent: z.object({
     photoUsage: z.literal(true),
     guardian: z.literal(true),
-    acceptedAt: z.string().datetime(),
+    acceptedAt: z.iso.datetime(),
   }),
   /** Vorbereitet für Warenkorb/Checkout */
-  product: z
-    .object({ sku: z.string().default("book-hardcover-a4"), quantity: z.number().int().min(1).max(10).default(1) })
-    .default({ sku: "book-hardcover-a4", quantity: 1 }),
+  product: z._default(
+    z.object({ sku: z._default(z.string(), "book-hardcover-a4"), quantity: z._default(z.int().check(z.minimum(1), z.maximum(10)), 1) }),
+    { sku: "book-hardcover-a4", quantity: 1 },
+  ),
 });
 export type OrderDraft = z.infer<typeof orderDraftSchema>;

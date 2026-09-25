@@ -6,7 +6,7 @@
  * Hero → Kamerafahrt ins Auge → Illustration → Buchcover → Blättern → Ausstieg.
  * Eine Sticky-Bühne, EINE Timeline (sampleStory), Updates direkt ins DOM/Canvas.
  */
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react";
 import { scrollTimeline } from "@/animations/scrollTimeline";
 import { BOOK_SPREAD_MIN_WIDTH } from "@/animations/motionTokens";
 import { buildStory, progressForExample, progressForFlip, sampleStory, type StoryState } from "@/animations/storyTimeline";
@@ -17,7 +17,6 @@ import { HeroCamera, type HeroManifest } from "@/components/HeroScene/heroCamera
 import { HeroRenderer } from "@/components/HeroScene/heroRenderer";
 import { bookPages } from "@/content/book";
 import { copy } from "@/content/copy";
-import heroManifest from "@/content/heroSequence.json";
 import { useMediaQuery, useReducedMotion } from "@/lib/hooks/useMediaQuery";
 import { navTheme } from "@/lib/navTheme";
 import { HeroPoster } from "./HeroPoster";
@@ -25,6 +24,10 @@ import "./story.css";
 
 const STORIES = { single: buildStory("single"), spread: buildStory("spread") };
 const COVER_SRC = { webp: "/media/story/cover-art-1248.webp", width: 1248 };
+const MANIFEST_URL = "/media/hero/manifest.json";
+/** Manifest einmal pro Seitenaufruf laden (nicht im JS-Bundle: wird erst nach dem LCP gebraucht) */
+let manifestPromise: Promise<HeroManifest> | null = null;
+const loadManifest = () => (manifestPromise ??= fetch(MANIFEST_URL).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))));
 
 const px = (n: number) => `${Math.round(n * 100) / 100}px`;
 
@@ -33,7 +36,6 @@ export function StoryStage() {
   const spread = useMediaQuery(`(min-width: ${BOOK_SPREAD_MIN_WIDTH}px)`, false);
   const mode = spread ? "spread" : "single";
   const story = STORIES[mode];
-  const camera = useMemo(() => new HeroCamera(heroManifest as unknown as HeroManifest), []);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -86,27 +88,17 @@ export function StoryStage() {
     const track = trackRef.current!;
     const stage = stageRef.current!;
     const canvas = canvasRef.current!;
-    let renderer: HeroRenderer;
-    try {
-      renderer = new HeroRenderer(canvas, camera, COVER_SRC);
-    } catch {
-      return; // Canvas nicht verfügbar -> Poster bleibt sichtbar
-    }
-    renderer.onFirstDraw = () => {
-      canvas.style.opacity = "1";
-      requestAnimationFrame(() => {
-        if (posterRef.current) posterRef.current.style.visibility = "hidden";
-      });
-    };
-
+    let renderer: HeroRenderer | null = null;
+    let disposed = false;
+    let wantLoading = false;
     const layout = () => {
       const w = stage.clientWidth;
       const h = stage.clientHeight;
       const layoutH = Math.min(h, probeRef.current?.clientHeight || h);
-      renderer.resize(w, h);
+      renderer?.resize(w, h);
       const g = computeBookGeometry(w, layoutH, mode);
       geomRef.current = g;
-      renderer.setCoverTarget(g.cover, g.radius);
+      renderer?.setCoverTarget(g.cover, g.radius);
       const hit = hitRef.current;
       if (hit) {
         const left = mode === "spread" ? g.spineOpenX - g.pageW : g.spineOpenX;
@@ -122,7 +114,7 @@ export function StoryStage() {
       const st = sampleStory(story, p);
       stateRef.current = st;
       const g = geomRef.current;
-      renderer.render({ heroPhase: st.heroPhase, over: st.over, morph: st.morph });
+      renderer?.render({ heroPhase: st.heroPhase, over: st.over, morph: st.morph });
       canvas.style.visibility = st.book.handoff ? "hidden" : "visible";
       if (g) bookRef.current?.apply(st.book, g);
 
@@ -156,6 +148,7 @@ export function StoryStage() {
         el.style.visibility = a > 0.001 ? "visible" : "hidden";
       });
       if (subRef.current) subRef.current.style.opacity = String(st.bookHeadline);
+      if (captionWrapRef.current) captionWrapRef.current.style.visibility = st.captionAlpha > 0.001 || st.bookHeadline > 0.001 ? "visible" : "hidden";
       const ctr = controlsRef.current;
       if (ctr) {
         ctr.style.opacity = String(st.bookUi);
@@ -181,6 +174,27 @@ export function StoryStage() {
       }
     };
 
+    // Sequenz erst laden, wenn die Seite steht (LCP/JS zuerst) – sofort, wenn schon gescrollt wurde
+    let started = false;
+    const startLoading = () => {
+      if (started) return;
+      started = true;
+      wantLoading = true;
+      renderer?.startLoading();
+      window.removeEventListener("scroll", startLoading);
+    };
+    let idleId = 0;
+    const whenIdle = () => {
+      const ric = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 200));
+      idleId = ric(startLoading, { timeout: 1500 }) as unknown as number;
+    };
+    if (window.scrollY > 0) startLoading();
+    else {
+      window.addEventListener("scroll", startLoading, { passive: true, once: true });
+      if (document.readyState === "complete") whenIdle();
+      else window.addEventListener("load", whenIdle, { once: true });
+    }
+
     layout();
     const ro = new ResizeObserver(() => {
       layout();
@@ -189,11 +203,34 @@ export function StoryStage() {
     ro.observe(stage);
     const unregister = scrollTimeline.register({ track, stage, onUpdate: update });
 
+    // Kamera + Canvas-Renderer, sobald das Manifest da ist (bis dahin zeigt das Poster den Startzustand)
+    loadManifest()
+      .then((m) => {
+        if (disposed) return;
+        try {
+          renderer = new HeroRenderer(canvas, new HeroCamera(m), COVER_SRC);
+        } catch {
+          return; // kein Canvas -> Poster bleibt
+        }
+        renderer.onFirstDraw = () => {
+          canvas.style.opacity = "1";
+          requestAnimationFrame(() => {
+            if (posterRef.current) posterRef.current.style.visibility = "hidden";
+          });
+        };
+        layout();
+        if (wantLoading) renderer.startLoading();
+        update(scrollTimeline.getProgress(track));
+      })
+      .catch(() => {
+        /* Manifest fehlt -> statisches Poster bleibt sichtbar, Story funktioniert ohne Canvas */
+      });
+
     // QA-/Debug-Zugriff (enthält keine personenbezogenen Daten)
     (window as unknown as { __plh?: unknown }).__plh = {
       progress: () => scrollTimeline.getProgress(track),
       state: () => stateRef.current,
-      renderer: () => ({ set: renderer.set, load: renderer.loadState, drawn: renderer.lastDrawn }),
+      renderer: () => ({ set: renderer?.set ?? null, load: renderer?.loadState ?? null, drawn: renderer?.lastDrawn ?? { set: "", frame: 0, t: 0 } }),
       scrollTo: (p: number) => scrollTimeline.scrollToProgress(track, p, false),
       scrollYFor: (p: number) => scrollTimeline.scrollYFor(track, p),
       story: () => story,
@@ -201,12 +238,16 @@ export function StoryStage() {
     };
 
     return () => {
+      window.removeEventListener("scroll", startLoading);
+      window.removeEventListener("load", whenIdle);
+      if (idleId) (window.cancelIdleCallback ?? window.clearTimeout)(idleId);
+      disposed = true;
       ro.disconnect();
       unregister();
-      renderer.dispose();
+      renderer?.dispose();
       navTheme.set("light");
     };
-  }, [reduced, mode, story, camera]);
+  }, [reduced, mode, story]);
 
   // ---------- Tastatur: Pfeiltasten blättern, wenn das Buch offen ist ----------
   useEffect(() => {
@@ -293,7 +334,7 @@ export function StoryStage() {
           {/* Hero-Text */}
           <div ref={heroCopyRef} className="hero-copy">
             <div className="container-page">
-              <h1 className="max-w-[14ch] text-display text-cream drop-shadow-[0_2px_18px_rgba(0,0,0,0.35)]">{copy.hero.headline}</h1>
+              <h1 className="max-w-[9.3em] text-display text-cream drop-shadow-[0_2px_18px_rgba(0,0,0,0.35)]">{copy.hero.headline}</h1>
               <p className="mt-4 max-w-[30ch] text-lead text-cream/90 md:mt-5">{copy.hero.subline}</p>
             </div>
           </div>
@@ -305,13 +346,13 @@ export function StoryStage() {
           {/* Nach der Verwandlung */}
           <div ref={illusRef} className="illus-copy" style={{ visibility: "hidden", opacity: 0 }}>
             <div className="container-page text-center">
-              <h2 className="mx-auto max-w-[16ch] text-headline text-cream drop-shadow-[0_2px_16px_rgba(0,0,0,0.45)]">{copy.transformation.headline}</h2>
+              <h2 className="mx-auto max-w-[10.6em] text-headline text-cream drop-shadow-[0_2px_16px_rgba(0,0,0,0.45)]">{copy.transformation.headline}</h2>
               <p className="mx-auto mt-3 max-w-[34ch] text-lead text-cream/90">{copy.transformation.subline}</p>
             </div>
           </div>
 
           {/* Kind + Teddy → Geschichte → Buch */}
-          <div ref={captionWrapRef} className="proof-wrap">
+          <div ref={captionWrapRef} className="proof-wrap" style={{ visibility: "hidden" }}>
             <div className="proof-lines" aria-live="off">
               {copy.proof.map((line, i) => (
                 <p key={line} ref={(el) => void (captionRefs.current[i] = el)} className="proof-line" style={{ visibility: "hidden", opacity: 0 }}>

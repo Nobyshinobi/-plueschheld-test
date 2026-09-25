@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   images: { unoptimized: true }, // Bild-Derivate (AVIF/WebP, responsive) erzeugt die eigene Pipeline
+  // ~14 kB CSS inline im <head>: keine render-blockierende Anfrage (Landingpage, v. a. Erstbesucher)
+  experimental: { inlineCss: true },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

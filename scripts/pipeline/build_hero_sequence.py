@@ -26,7 +26,7 @@ Was die Pipeline macht:
         p = Portrait-Band 9:16 (Phones),   f = Vollbild 3:4 (Tablets),
         l = Landscape-Band 1.43:1 (Desktop)
      Bänder sind entlang des Look-at-Pfads zugeschnitten -> kleinere Dateien.
-  7. Manifest (src/content/heroSequence.json) für den Canvas-Renderer.
+  7. Manifest (public/media/hero/manifest.json) für den Canvas-Renderer (per fetch, nicht im JS-Bundle).
 
 Aufruf:  npm run assets:hero      (benötigt: pip install -r scripts/pipeline/requirements.txt)
 """
@@ -47,7 +47,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC_VIDEO = ROOT / "assets-src/hero/transformation.mp4"
 CACHE = ROOT / ".cache/hero"
 OUT_DIR = ROOT / "public/media/hero"
-MANIFEST = ROOT / "src/content/heroSequence.json"
+MANIFEST = ROOT / "public/media/hero/manifest.json"
 
 SRC_W, SRC_H = 1248, 1664
 ASPECT_H = SRC_H / SRC_W  # Frame-Höhe in "W-Einheiten" (x in [0,1], y in [0,1.3333])

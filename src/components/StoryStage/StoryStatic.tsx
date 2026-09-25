@@ -74,7 +74,7 @@ export function StoryStatic() {
         <div className="story-scrim" aria-hidden="true" />
         <div className="absolute inset-x-0 bottom-[max(56px,env(safe-area-inset-bottom))]">
           <div className="container-page">
-            <h1 className="max-w-[14ch] text-display text-cream">{copy.hero.headline}</h1>
+            <h1 className="max-w-[9.3em] text-display text-cream">{copy.hero.headline}</h1>
             <p className="mt-4 max-w-[30ch] text-lead text-cream/90">{copy.hero.subline}</p>
           </div>
         </div>
@@ -97,7 +97,7 @@ export function StoryStatic() {
         <div className="story-scrim" aria-hidden="true" />
         <div className="absolute inset-x-0 bottom-12 text-center">
           <div className="container-page">
-            <h2 className="mx-auto max-w-[16ch] text-headline text-cream">{copy.transformation.headline}</h2>
+            <h2 className="mx-auto max-w-[10.6em] text-headline text-cream">{copy.transformation.headline}</h2>
             <p className="mx-auto mt-3 max-w-[34ch] text-lead text-cream/90">{copy.transformation.subline}</p>
           </div>
         </div>

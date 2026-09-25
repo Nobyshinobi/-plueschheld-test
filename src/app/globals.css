@@ -1,6 +1,36 @@
 @import "tailwindcss";
 
 /* =====================================================================
+   Metrisch angepasste Fallback-Schriften für Fraunces (verhindert Layout-Shift beim Font-Swap).
+   Werte gemessen (fontTools) an deutschem Headline-Text bei wght 500 / SOFT 100:
+   Ø-Glyphenbreite Fraunces 0.4779 em · Times/Liberation 0.4079 · Noto Serif 0.4800 · DejaVu 0.5173
+   ===================================================================== */
+@font-face {
+  font-family: "Fraunces Fallback Times";
+  src: local("Times New Roman"), local("TimesNewRomanPSMT"), local("Liberation Serif"), local("Tinos");
+  size-adjust: 117.15%;
+  ascent-override: 83.48%;
+  descent-override: 21.77%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Fraunces Fallback Noto"; /* Android */
+  src: local("Noto Serif"), local("NotoSerif-Regular"), local("Droid Serif");
+  size-adjust: 99.55%;
+  ascent-override: 98.24%;
+  descent-override: 25.62%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Fraunces Fallback DejaVu"; /* Linux */
+  src: local("DejaVu Serif"), local("DejaVuSerif");
+  size-adjust: 92.39%;
+  ascent-override: 105.86%;
+  descent-override: 27.6%;
+  line-gap-override: 0%;
+}
+
+/* =====================================================================
    DESIGN TOKENS – einzige Quelle für Farben, Typo, Abstände, Radien,
    Schatten, Motion. JS-Pendants: src/animations/motionTokens.ts
    ===================================================================== */
@@ -23,7 +53,7 @@
   --color-sage: #6f8f7a;        /* Erfolg */
   --color-danger: #a3332b;      /* Fehlertext (auf Creme > 6:1) */
 
-  --font-display: var(--font-fraunces), "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-display: var(--font-fraunces), "Fraunces Fallback Times", "Fraunces Fallback Noto", "Fraunces Fallback DejaVu", Georgia, serif;
   --font-sans: var(--font-figtree), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
   /* Fluid Type (clamp: Mobile 390 → Desktop 1440) */
@@ -84,10 +114,11 @@
     -moz-osx-font-smoothing: grayscale;
     overflow-x: clip; /* clip statt hidden: erzeugt keinen Scroll-Container -> sticky bleibt intakt */
   }
-  :where(h1, h2, h3, .font-display) {
+  /* Bewusst ohne :where(): muss Tailwinds Preflight (h1 { font-weight: inherit }) überstimmen */
+  h1, h2, h3, .font-display {
     font-family: var(--font-display);
     font-variation-settings: "SOFT" 100;
-    font-weight: 540;
+    font-weight: 500;
     letter-spacing: -0.012em;
     text-wrap: balance;
   }
@@ -303,6 +334,8 @@
    ===================================================================== */
 @layer components {
   .configurator {
+    /* gleitet während des Story-Ausstiegs über die gepinnte Bühne (nur mit Bewegung) */
+    margin-top: calc(var(--exit-len, 0) * -100 * var(--vh-small));
     border-radius: 32px 32px 0 0;
     box-shadow: 0 -28px 60px -34px rgb(11 29 54 / 0.45);
     background:
@@ -576,6 +609,7 @@
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
+  .configurator { margin-top: 0; }
   .step-panel, .upload-preview { animation: none; }
   .reveal-ready [data-reveal] { opacity: 1; transform: none; transition: none; }
   .upload-zone, .upload-zone:hover, .chip, .chip:hover { transform: none; transition: none; }
