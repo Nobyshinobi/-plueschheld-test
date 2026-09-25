@@ -136,6 +136,29 @@ await run("Desktop 1440×900", { viewport: { width: 1440, height: 900 } }, async
   ok(s.p < 0.001 && s.r.drawn.frame === 1, `Sprung Ende→Anfang: wieder Frame 1 (Frame ${s.r.drawn.frame})`);
 });
 
+// ---------------------------------------------------------------- Direkter Sprung vor dem Laden
+{
+  console.log("\n== Direkter Sprung ins Buch/Morph, bevor die Sequenz geladen ist (Regression)");
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await ctx.newPage();
+  await page.route(/\/media\/hero\/[plf]\/(?!001)/, (r) => new Promise((res) => setTimeout(() => res(r.continue()), 4000))); // Sequenz künstlich langsam
+  await page.goto(base + "/", { waitUntil: "load" });
+  await page.waitForFunction(() => window.__plh?.story, null, { timeout: 20000 });
+  await page.evaluate(() => document.getElementById("beispiel").scrollIntoView());
+  await settle(page, 900);
+  const vis = await page.evaluate(() => getComputedStyle(document.querySelector(".story-stage img.hero-poster")).visibility);
+  ok(vis === "hidden", `Buch sofort nach dem Laden: Poster verdeckt das Buch nicht (poster=${vis})`);
+  await page.screenshot({ path: `${out}/jump-book-before-load.png` });
+  const story = await page.evaluate(() => window.__plh.story());
+  const pm = (story.seg.morph[0] + story.seg.morph[1]) / 2;
+  await page.evaluate((y) => scrollTo(0, y), await page.evaluate((pp) => window.__plh.scrollYFor(pp), pm));
+  await settle(page, 1500);
+  const op = await page.evaluate(() => getComputedStyle(document.querySelector(".story-stage canvas")).opacity);
+  ok(op === "1", `Direkt im Morph: Canvas-Karte sichtbar (opacity=${op})`);
+  await page.screenshot({ path: `${out}/jump-morph-before-load.png` });
+  await ctx.close();
+}
+
 // ---------------------------------------------------------------- Mobile + Rotation
 await run("iPhone 390×844 (touch)", { viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true }, async (page, ctx) => {
   const example = await page.evaluate(() => window.__plh.scrollYFor(0) + 0);

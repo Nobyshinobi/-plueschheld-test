@@ -139,6 +139,8 @@ export function BookFlip({ mode, pages, load, ref }: Props) {
           scene.style.setProperty("--ph", String(g.pageH));
           scene.style.setProperty("--board", String(BOARD));
           scene.style.setProperty("--thick", String(thick));
+          // Perspektive relativ zur Seitenbreite: angehobene Seite wächst max. ~20 % (statt ~30 %)
+          scene.style.perspective = `${Math.round(Math.max(1800, g.pageW * 6))}px`;
         }
         const thick = Math.max(6, Math.round(g.pageW * 0.024));
         const open = clamp01(v.open);

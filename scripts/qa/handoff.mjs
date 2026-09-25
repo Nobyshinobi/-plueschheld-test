@@ -3,7 +3,7 @@
 import { chromium } from "playwright-core";
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
-const url = process.argv[2] || "http://localhost:3001";
+const url = process.argv[2] || process.env.QA_URL || "http://localhost:3000";
 mkdirSync("qa-artifacts/handoff", { recursive: true });
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 for (const vp of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
@@ -30,9 +30,11 @@ import sys
 from PIL import Image, ImageChops, ImageStat
 a=Image.open(sys.argv[1]).convert('RGB'); b=Image.open(sys.argv[2]).convert('RGB').resize(a.size)
 d=ImageChops.difference(a,b); st=ImageStat.Stat(d)
-print(f"mittlere Abweichung {sum(st.mean)/3:.2f}/255, max {max(x[1] for x in d.getextrema())}")
+m=sum(st.mean)/3
+print(f"{'✓' if m < 10 else '✗'} mittlere Abweichung {m:.2f}/255 (Grenze 10), max {max(x[1] for x in d.getextrema())}")
 `, ...shots]).toString().trim();
   console.log(`${vp.width}px Übergabe Canvas→DOM: ${diff}`);
+  if (diff.includes("✗")) process.exitCode = 1;
   await page.close();
 }
 await browser.close();

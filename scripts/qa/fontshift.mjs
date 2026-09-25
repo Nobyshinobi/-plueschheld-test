@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Vergleicht Hero-Textblock mit Fallback-Font (Webfonts blockiert) vs. Webfont -> Layout-Shift-Risiko. */
 import { chromium } from "playwright-core";
-const url = process.argv[2] || "http://localhost:3001/";
+const url = process.argv[2] || (process.env.QA_URL || "http://localhost:3000") + "/";
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" });
 for (const vp of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1440, height: 900 }]) {
   const res = {};
@@ -18,6 +18,8 @@ for (const vp of [{ width: 390, height: 844 }, { width: 430, height: 932 }, { wi
     });
     await page.close();
   }
-  console.log(vp.width + "x" + vp.height, JSON.stringify(res));
+  const same = JSON.stringify(res.fallback) === JSON.stringify(res.webfont);
+  console.log(`${same ? "✓" : "✗"} ${vp.width}x${vp.height} Fallback = Webfont`, JSON.stringify(res));
+  if (!same) process.exitCode = 1;
 }
 await browser.close();

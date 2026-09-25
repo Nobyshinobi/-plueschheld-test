@@ -10,11 +10,12 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "assets:hero": "python3 scripts/pipeline/build_hero_sequence.py",
-    "assets:logo": "python3 scripts/pipeline/build_logo.py",
     "assets:images": "python3 scripts/pipeline/build_static_images.py",
     "assets:book": "node scripts/pipeline/render-book-pages.mjs",
     "book:import-pdf": "python3 scripts/pipeline/import_book_pdf.py",
-    "qa": "node scripts/qa/run-qa.mjs"
+    "qa": "node scripts/qa/run-all.mjs",
+    "qa:shots": "node scripts/qa/shoot.mjs",
+    "docs:bible": "node scripts/pipeline/render-doc-pdf.mjs docs/Scroll-Experience-Bible-v1.1-Nachtrag.md docs/PlueschHeld_Scroll_Bible_v1.1_Nachtrag.pdf"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

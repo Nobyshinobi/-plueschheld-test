@@ -96,7 +96,14 @@ await page.reload({ waitUntil: "load" });
 await page.evaluate(() => document.getElementById("buch-erstellen").scrollIntoView());
 await page.waitForTimeout(900);
 ok((await page.getByLabel("Name des Kindes").inputValue()) === "Emma", "Nach Reload: Name wiederhergestellt");
-await page.getByRole("button", { name: "Kind", exact: false }).first().click().catch(() => {});
+// zurück zu Schritt 1: Foto muss aus IndexedDB wiederhergestellt sein
+await page.getByRole("button", { name: "Zurück" }).click();
+await page.getByRole("button", { name: "Zurück" }).click();
+await page.waitForTimeout(400);
+ok(await page.locator(".upload-preview img").isVisible(), "Nach Reload: Kinderfoto wiederhergestellt (IndexedDB)");
+await next();
+await next();
+ok((await page.getByLabel("Name des Kindes").inputValue()) === "Emma", "Vor/Zurück behält Eingaben");
 await next();
 
 // Schritt 4: Interessen

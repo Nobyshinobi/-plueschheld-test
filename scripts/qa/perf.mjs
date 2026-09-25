@@ -3,7 +3,7 @@
 import { chromium } from "playwright-core";
 import { existsSync } from "node:fs";
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > -1 ? process.argv[i + 1] : d; };
-const url = arg("url", "http://localhost:3001");
+const url = arg("url", process.env.QA_URL || "http://localhost:3000");
 const [W, H] = arg("vp", "1440x900").split("x").map(Number);
 const gpu = process.argv.includes("--gpu");
 const CHROME = process.env.CHROME_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";

@@ -91,6 +91,14 @@ export function StoryStage() {
     let renderer: HeroRenderer | null = null;
     let disposed = false;
     let wantLoading = false;
+    let canvasReady = false;
+    /** Poster (LCP-Bild) nur, solange der Canvas noch nichts zeigt UND wir im Foto-Teil sind */
+    const syncPoster = (st: StoryState | null) => {
+      const el = posterRef.current;
+      if (!el) return;
+      const show = !canvasReady && (!st || st.morph <= 0);
+      el.style.visibility = show ? "visible" : "hidden";
+    };
     const layout = () => {
       const w = stage.clientWidth;
       const h = stage.clientHeight;
@@ -116,6 +124,7 @@ export function StoryStage() {
       const g = geomRef.current;
       renderer?.render({ heroPhase: st.heroPhase, over: st.over, morph: st.morph });
       canvas.style.visibility = st.book.handoff ? "hidden" : "visible";
+      syncPoster(st);
       if (g) bookRef.current?.apply(st.book, g);
 
       const hc = heroCopyRef.current;
@@ -215,7 +224,8 @@ export function StoryStage() {
         renderer.onFirstDraw = () => {
           canvas.style.opacity = "1";
           requestAnimationFrame(() => {
-            if (posterRef.current) posterRef.current.style.visibility = "hidden";
+            canvasReady = true;
+            syncPoster(stateRef.current);
           });
         };
         layout();
@@ -322,7 +332,7 @@ export function StoryStage() {
             />
           </div>
 
-          <HeroPoster ref={posterRef} className="story-layer object-cover" />
+          <HeroPoster ref={posterRef} className="story-layer hero-poster object-cover" />
           <canvas ref={canvasRef} className="story-layer" style={{ opacity: 0 }} aria-hidden="true" />
 
           <div ref={vignetteRef} className="story-vignette" aria-hidden="true" />

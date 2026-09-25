@@ -45,7 +45,7 @@
   --color-sand-deep: #d9c6a6;
   --color-gold: #d6b36a;        /* magischer Akzent – nur auf dunklem Grund als Text */
   --color-gold-soft: #f1dfb2;
-  --color-gold-text: #8a6a2e;   /* Gold als Text auf Creme (4.8:1) */
+  --color-gold-text: #7a5c24;   /* Gold als Text: 5.5:1 auf Papier, 6:1 auf Creme */
   --color-coral: #ef6a67;       /* emotionale Akzente (dekorativ) */
   --color-coral-deep: #b8473f;  /* CTA-Fläche mit Creme-Text (5.0:1) */
   --color-coral-deeper: #a3453d;

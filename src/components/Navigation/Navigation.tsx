@@ -11,7 +11,13 @@ const LINKS = [
   { id: "beispiel", label: copy.nav.example },
 ] as const;
 
-export function Navigation({ fixedTheme }: { fixedTheme?: NavTheme }) {
+type Props = {
+  fixedTheme?: NavTheme;
+  /** Ziel des Skip-Links (Startseite: Konfigurator hinter der langen Story; Unterseiten: Inhalt) */
+  skipTo?: { id: string; label: string };
+};
+
+export function Navigation({ fixedTheme, skipTo = { id: "buch-erstellen", label: copy.nav.skip } }: Props) {
   const storeTheme = useSyncExternalStore(navTheme.subscribe, navTheme.get, () => "dark" as NavTheme);
   const theme = fixedTheme ?? storeTheme;
   const [open, setOpen] = useState(false);
@@ -42,8 +48,8 @@ export function Navigation({ fixedTheme }: { fixedTheme?: NavTheme }) {
   const dark = theme === "dark" && !open;
   return (
     <header className={`site-nav ${dark ? "is-dark" : "is-light"} ${open ? "is-open" : ""}`}>
-      <a href="#buch-erstellen" onClick={(e) => go(e, "buch-erstellen")} className="skip-link">
-        {copy.nav.skip}
+      <a href={`#${skipTo.id}`} onClick={(e) => go(e, skipTo.id)} className="skip-link">
+        {skipTo.label}
       </a>
       <div className="container-page flex h-[var(--nav-h)] items-center justify-between gap-4">
         <Link href="/" className="relative block h-[34px] w-[108px] shrink-0 md:h-[40px] md:w-[128px]" aria-label={`${copy.brand.name} – Startseite`}>

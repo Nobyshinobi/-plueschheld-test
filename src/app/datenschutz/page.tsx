@@ -34,8 +34,8 @@ const points = [
 export default function DatenschutzPage() {
   return (
     <>
-      <Navigation fixedTheme="light" />
-      <main id="inhalt" className="bg-paper pb-24 pt-32 md:pt-40">
+      <Navigation fixedTheme="light" skipTo={{ id: "inhalt", label: "Zum Inhalt springen" }} />
+      <main id="inhalt" tabIndex={-1} className="bg-paper pb-24 pt-32 outline-none md:pt-40">
         <div className="container-page max-w-3xl">
           <p className="eyebrow text-gold-text">Datenschutz &amp; Fotos</p>
           <h1 className="mt-3 text-headline text-ink">Eure Fotos sind bei uns in guten Händen.</h1>

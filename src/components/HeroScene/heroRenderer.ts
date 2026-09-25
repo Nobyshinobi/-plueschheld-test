@@ -157,11 +157,15 @@ export class HeroRenderer {
         this.prevStore = null;
       }
       if (this.debugEye) this.drawEye(cam);
-      if (!this.firstDraw) {
-        this.firstDraw = true;
-        this.onFirstDraw?.();
-      }
+      this.markDrawn();
     }
+  }
+
+  /** Meldet das erste tatsächlich gezeichnete Bild (Kamera ODER Morph) – Canvas darf sichtbar werden */
+  private markDrawn() {
+    if (this.firstDraw) return;
+    this.firstDraw = true;
+    this.onFirstDraw?.();
   }
 
   /** Zeichnet die Kamera mit dem besten verfügbaren Frame. true, wenn gezeichnet wurde. */
@@ -210,7 +214,7 @@ export class HeroRenderer {
     if (!this.coverReady || !this.coverImg) {
       // Fallback bis das Cover-Motiv da ist: letzter Sequenzframe im Zielrechteck
       const cam = this.cam.camera(this.cam.m.end, w / h, 1);
-      this.drawCamera(cam, this.store!);
+      if (this.drawCamera(cam, this.store!)) this.markDrawn();
       return;
     }
     const H = this.cam.H;
@@ -243,6 +247,7 @@ export class HeroRenderer {
     ctx.imageSmoothingQuality = "medium"; // "high" = 3× Rasterkosten ohne sichtbaren Gewinn beim Hochskalieren (gemessen)
     ctx.drawImage(img, sx * k, sy * k, sw * k, sh * k, D.x, D.y, D.w, D.h);
     ctx.restore();
+    this.markDrawn();
   }
 
   private drawEye(cam: Camera) {
