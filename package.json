@@ -1,0 +1,41 @@
+{
+  "name": "plueschheld-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PlüschHeld – personalisierte Kinderbücher. Cinematic Scroll Experience + Konfigurator.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "assets:hero": "python3 scripts/pipeline/build_hero_sequence.py",
+    "assets:logo": "python3 scripts/pipeline/build_logo.py",
+    "assets:images": "python3 scripts/pipeline/build_static_images.py",
+    "assets:book": "node scripts/pipeline/render-book-pages.mjs",
+    "book:import-pdf": "python3 scripts/pipeline/import_book_pdf.py",
+    "qa": "node scripts/qa/run-qa.mjs"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.9.1",
+    "heic-to": "^1.5.2",
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-hook-form": "^7.88.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@fontsource-variable/figtree": "^5.3.0",
+    "@fontsource-variable/fraunces": "^5.3.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.6",
+    "playwright-core": "^1.56.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,263 @@
+/* 3D-Buch: CSS-3D (preserve-3d) statt WebGL – leicht, GPU-beschleunigt, stabil auf iOS.
+   Regel: KEIN opacity/overflow/filter auf preserve-3d-Elementen (würde flach rendern). */
+
+.scene {
+  position: absolute;
+  inset: 0;
+  perspective: 2000px;
+  pointer-events: none;
+}
+
+.book {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* Alle Buchteile sind relativ zum Buchrücken (x = 0) und zur Seitenoberkante (y = 0) positioniert */
+.part {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.floorShadow {
+  composes: part;
+  width: calc(var(--pw) * 1px);
+  height: calc(var(--ph) * 1px);
+  border-radius: 6px;
+  transform-origin: 0 50%;
+  box-shadow:
+    0 40px 70px -18px rgb(62 42 18 / 0.42),
+    0 18px 28px -14px rgb(62 42 18 / 0.35);
+  opacity: 0;
+}
+
+.boardBack {
+  composes: part;
+  top: calc(var(--board) * -1px);
+  width: calc((var(--pw) + var(--board)) * 1px);
+  height: calc((var(--ph) + var(--board) * 2) * 1px);
+  border-radius: 2px 5px 5px 2px;
+  background: linear-gradient(90deg, #0a1a33 0%, #10264a 6%, #13305c 60%, #10264a 100%);
+  opacity: 0;
+}
+
+/* Buchblock-Kanten (echte 3D-Flächen) */
+.edgeRight,
+.edgeTop,
+.edgeBottom {
+  composes: part;
+  backface-visibility: hidden;
+  opacity: 0;
+  background-color: #f3eadb;
+  background-image: repeating-linear-gradient(90deg, rgb(120 96 60 / 0.16) 0 1px, transparent 1px 3px);
+}
+.edgeRight {
+  left: calc(var(--pw) * 1px);
+  width: calc(var(--thick) * 1px);
+  height: calc(var(--ph) * 1px);
+  transform-origin: 0 50%;
+  transform: rotateY(90deg);
+}
+.edgeTop,
+.edgeBottom {
+  width: calc(var(--pw) * 1px);
+  height: calc(var(--thick) * 1px);
+  background-image: repeating-linear-gradient(0deg, rgb(120 96 60 / 0.16) 0 1px, transparent 1px 3px);
+}
+.edgeTop {
+  /* Ursprung an der Unterkante (y = 0 des Buchblocks): ragt nach hinten, Normale zeigt nach oben */
+  top: calc(var(--thick) * -1px);
+  transform-origin: 50% 100%;
+  transform: rotateX(90deg);
+}
+.edgeBottom {
+  top: calc(var(--ph) * 1px);
+  transform-origin: 50% 0;
+  transform: rotateX(-90deg);
+}
+
+.sheet {
+  composes: part;
+  width: calc(var(--pw) * 1px);
+  height: calc(var(--ph) * 1px);
+  transform-origin: 0 50%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.coverSheet {
+  top: calc(var(--board) * -1px);
+  width: calc((var(--pw) + var(--board)) * 1px);
+  height: calc((var(--ph) + var(--board) * 2) * 1px);
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: #fbf5ea;
+}
+.back {
+  transform: rotateY(180deg);
+}
+
+.pageImg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Bundsteg: weicher Innenschatten am Rücken */
+.front::after,
+.back::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.front::after {
+  background: linear-gradient(90deg, rgb(60 40 15 / 0.28) 0%, rgb(60 40 15 / 0.1) 3.5%, transparent 9%, transparent 94%, rgb(60 40 15 / 0.06) 100%);
+}
+.back::after {
+  background: linear-gradient(270deg, rgb(60 40 15 / 0.28) 0%, rgb(60 40 15 / 0.1) 3.5%, transparent 9%, transparent 94%, rgb(60 40 15 / 0.06) 100%);
+}
+.coverSheet .front::after,
+.coverSheet .back::after {
+  display: none;
+}
+
+/* Dynamische Schattierung (Opazität per JS) */
+.shade,
+.cast {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.front .shade {
+  background: linear-gradient(90deg, rgb(30 20 8 / 0.55), rgb(30 20 8 / 0.15) 60%, rgb(255 255 255 / 0.08));
+}
+.back .shade {
+  background: linear-gradient(270deg, rgb(30 20 8 / 0.55), rgb(30 20 8 / 0.15) 60%, rgb(255 255 255 / 0.08));
+}
+.front .cast {
+  background: linear-gradient(90deg, rgb(40 26 8 / 0.5) 0%, rgb(40 26 8 / 0.18) 22%, transparent 55%);
+}
+.back .cast {
+  background: linear-gradient(270deg, rgb(40 26 8 / 0.5) 0%, rgb(40 26 8 / 0.18) 22%, transparent 55%);
+}
+
+.plainBack {
+  background:
+    radial-gradient(120% 90% at 50% 45%, transparent 60%, rgb(150 110 60 / 0.1) 100%),
+    #f8f0e2;
+}
+
+/* ---------- Cover ---------- */
+.coverFront {
+  border-radius: 2px 5px 5px 2px;
+  background: #10264a;
+}
+.coverArt {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  visibility: hidden;
+}
+.coverTitle {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 11%;
+  text-align: center;
+  opacity: 0;
+  background: linear-gradient(180deg, rgb(8 22 44 / 0.86) 0%, rgb(8 22 44 / 0.55) 24%, rgb(8 22 44 / 0) 46%);
+}
+.coverName {
+  font-family: var(--font-display);
+  font-variation-settings: "SOFT" 100;
+  font-weight: 720;
+  font-size: calc(var(--pw) * 0.215px);
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  background: linear-gradient(180deg, #fff3cf 0%, #f0cf82 45%, #c9953f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 6px rgb(0 0 0 / 0.35));
+}
+.coverSub {
+  font-family: var(--font-fraunces-italic), var(--font-display);
+  font-style: italic;
+  font-weight: 460;
+  font-size: calc(var(--pw) * 0.068px);
+  color: #f6e3b4;
+  margin-top: 0.35em;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.45);
+}
+.coverFoil {
+  position: absolute;
+  inset: 5.5%;
+  border: 1.5px solid rgb(240 207 130 / 0.85);
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 4px rgb(240 207 130 / 0.18);
+  opacity: 0;
+}
+.coverHinge {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgb(0 0 0 / 0.42) 0%, rgb(255 255 255 / 0.1) 2.2%, rgb(0 0 0 / 0.12) 4.2%, transparent 8%);
+  opacity: 0;
+}
+.coverSheen {
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(115deg, transparent 38%, rgb(255 255 255 / 0.16) 48%, transparent 58%);
+  opacity: 0;
+  transform: translateX(var(--sheen, -30%));
+}
+.coverInside {
+  background: #10264a;
+}
+.endpaper {
+  position: absolute;
+  left: calc(var(--board) * 1px);
+  top: calc(var(--board) * 1px);
+  width: calc(var(--pw) * 1px);
+  height: calc(var(--ph) * 1px);
+}
+.endpaperPlain {
+  background:
+    radial-gradient(circle at 20% 20%, rgb(214 179 106 / 0.35) 0 1.5px, transparent 2px) 0 0 / 34px 34px,
+    radial-gradient(circle at 70% 60%, rgb(214 179 106 / 0.25) 0 1px, transparent 1.5px) 0 0 / 26px 26px,
+    #16325e;
+}
+
+/* Klick-/Wischfläche */
+.hit {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: pan-y;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.hit:focus-visible {
+  outline: 3px solid var(--color-coral-deep);
+  outline-offset: 8px;
+  border-radius: 8px;
+}
