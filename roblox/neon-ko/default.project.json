@@ -1,0 +1,23 @@
+{
+  "name": "NEON_KO",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "ArcadeBoxing": {
+        "$path": "src/ReplicatedStorage/ArcadeBoxing"
+      }
+    },
+    "ServerScriptService": {
+      "ArcadeBoxing": {
+        "$path": "src/ServerScriptService/ArcadeBoxing"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "ArcadeBoxingClient": {
+          "$path": "src/StarterPlayerScripts/ArcadeBoxingClient"
+        }
+      }
+    }
+  }
+}
